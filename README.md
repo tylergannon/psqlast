@@ -1,4 +1,4 @@
-# Parse SQL to JSON (via pg_query)
+# psqlast -- view the AST for your postgres scripts
 
 This Go program reads an SQL script and converts it to JSON using [**pg_query**](https://github.com/pganalyze/pg_query_go). It supports:
 
@@ -14,108 +14,55 @@ This Go program reads an SQL script and converts it to JSON using [**pg_query**]
 1. **SQL** → **JSON** using [github.com/pganalyze/pg_query_go/v6](https://github.com/pganalyze/pg_query_go).
 2. **Clipboard** support with [github.com/atotto/clipboard](https://github.com/atotto/clipboard).
 3. **Colorized** output using [github.com/TylerBrock/colorjson](https://github.com/TylerBrock/colorjson).
-4. **Configurable indentation**:
-   - `--indent=tab`: Indent with real tab characters in non-colorized output.
-   - `--indent=2` or any integer: Indent with that many spaces per level.
-5. **Smart defaults**:
-   - If you **do not** specify `--no-pretty`, the JSON is indented.
-   - If you **specify** `--out`, the JSON is also indented by default (unless `--no-pretty` is given).
-   - If you **do not** specify `--no-color`, JSON is colorized (unless you choose minimal output).
 
 ## Installation
 
 ```bash
-# Clone this repository or copy the main.go file
-# Then install dependencies:
-go get github.com/pganalyze/pg_query_go/v6
-go get github.com/atotto/clipboard
-go get github.com/TylerBrock/colorjson
+go install github.com/tylergannon/psqlast@latest
+```
+this will install `psqlast` to your `$GO_HOME/bin` directory.
 
-# Build the tool:
-go build -o parse_sql_to_json main.go
+
+## Examples
+
+### Normal formatted output
+
+```fish
+echo "select * from foobar" | psqlast
+
+# also, if the query is in your clipboard:
+
+echo (pbpaste) | psqlast
+
+# or, more simply:
+
+psqlast -c
+```
+![formatted output](./select_normal.png)
+
+### Use [https://jqlang.github.io/jq/](jq) to process the data:
+
+#### Select all table references from a query
+
+```fish
+psqlast -c | jq '.. | objects | select(has("RangeVar")) | .RangeVar'
 ```
 
-This will produce a binary named `parse_sql_to_json`.
+![table references from query](./table_references.png)
 
-## Usage
 
-Basic usage:
+### No formatting:
 
-```bash
-./parse_sql_to_json [options] [filePath]
+```fish
+echo "select * from foobar" | psqlast --no-pretty --no-color
 ```
 
-- `[filePath]` (positional argument) is **optional**. If omitted, the tool reads from `STDIN` by default.
-- If `--use-clipboard` / `-c` is set, it will read from the **system clipboard** instead, ignoring file/STDIN.
-
-### Command-line Flags
-
-| Flag                | Short | Default | Description                                                                                              |
-|---------------------|-------|---------|----------------------------------------------------------------------------------------------------------|
-| `--no-pretty`       | (none)| `false` | If set, **disable** pretty-printing (indentation).                                                      |
-| `--no-color`        | (none)| `false` | If set, **disable** colorized output.                                                                   |
-| `--out`             | (none)| (empty) | Write output to a file. If not specified, output goes to `STDOUT`.                                      |
-| `--indent`          | (none)| `"tab"` | Indentation style for pretty-printing. Accepts `tab` or an integer (e.g., `2`).                         |
-| `--use-clipboard`   | `-c`  | `false` | If set, read the SQL script from the system clipboard. Overrides file/STDIN input.                      |
-
-### Examples
-
-1. **Parse from a file**:
-   ```bash
-   ./parse_sql_to_json my_script.sql
-   ```
-   - Reads `my_script.sql`, parses to JSON, colorizes, and prints to STDOUT with indentation.
-
-2. **Parse from STDIN**:
-   ```bash
-   cat my_script.sql | ./parse_sql_to_json
-   ```
-   - Same outcome as above, but reading from a pipe.
-
-3. **Clipboard**:
-   ```bash
-   ./parse_sql_to_json --use-clipboard
-   ```
-   or
-   ```bash
-   ./parse_sql_to_json -c
-   ```
-   - Reads whatever SQL content is in your clipboard, parses to JSON, and prints it out.
-
-4. **Disable pretty-printing**:
-   ```bash
-   ./parse_sql_to_json --no-pretty my_script.sql
-   ```
-   - Resulting JSON is a single line (unless you also request color, in which case it will still be colorized, but not indented).
-
-5. **Disable color**:
-   ```bash
-   ./parse_sql_to_json --no-color my_script.sql
-   ```
-   - Output will be plain JSON without ANSI color codes.
-
-6. **Set custom indentation**:
-   ```bash
-   ./parse_sql_to_json --indent=4 my_script.sql
-   ```
-   - Indent with 4 spaces per level.
-
-7. **Write to an output file**:
-   ```bash
-   ./parse_sql_to_json --out=output.json my_script.sql
-   ```
-   - Creates (or truncates) `output.json` with the resulting JSON. Pretty-printed by default.
-
-8. **Combine flags**:
-   ```bash
-   ./parse_sql_to_json --no-color --indent=2 --out=output.json my_script.sql
-   ```
-   - Writes to `output.json`, using 2 spaces per indent level, with no color codes.
+![unformatted output](./select_unformatted.png)
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information, if applicable.
+Distributed under the MIT License.
 
 ## Contributing
 
-Feel free to open an issue or pull request to contribute improvements or fixes. If you have questions about usage, please reach out!
+Feel free to open an issue or pull request to contribute improvements or fixes.
