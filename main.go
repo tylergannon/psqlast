@@ -36,7 +36,7 @@ func main() {
 		// 1) If --use-clipboard/-c is set, read from clipboard
 		cbContents, cbErr := clipboard.ReadAll()
 		if cbErr != nil {
-			fmt.Fprintf(os.Stderr, "Error: Failed to read from clipboard: %v\n", cbErr)
+			_, _ = fmt.Fprintf(os.Stderr, "Error: Failed to read from clipboard: %v\n", cbErr)
 			os.Exit(1)
 		}
 		inputSQL = []byte(cbContents)
@@ -45,25 +45,25 @@ func main() {
 		// 2) Otherwise, check if there's a positional file argument
 		args := flag.Args()
 		if len(args) > 1 {
-			fmt.Fprintln(os.Stderr, "Error: Too many positional arguments.")
-			fmt.Fprintln(os.Stderr, "Usage: [flags] [filePath]")
+			_, _ = fmt.Fprintln(os.Stderr, "Error: Too many positional arguments.")
+			_, _ = fmt.Fprintln(os.Stderr, "Usage: [flags] [filePath]")
 			os.Exit(1)
 		} else if len(args) == 1 {
 			filePath := args[0]
 			// Validate file
 			fi, errStat := os.Stat(filePath)
 			if errStat != nil {
-				fmt.Fprintf(os.Stderr, "Error: Cannot access file '%s': %v\n", filePath, errStat)
+				_, _ = fmt.Fprintf(os.Stderr, "Error: Cannot access file '%s': %v\n", filePath, errStat)
 				os.Exit(1)
 			}
 			if !fi.Mode().IsRegular() {
-				fmt.Fprintf(os.Stderr, "Error: '%s' is not a regular file.\n", filePath)
+				_, _ = fmt.Fprintf(os.Stderr, "Error: '%s' is not a regular file.\n", filePath)
 				os.Exit(1)
 			}
 			// Read file
 			inputSQL, err = os.ReadFile(filePath)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Failed to read file '%s': %v\n", filePath, err)
+				_, _ = fmt.Fprintf(os.Stderr, "Error: Failed to read file '%s': %v\n", filePath, err)
 				os.Exit(1)
 			}
 
@@ -71,16 +71,21 @@ func main() {
 			// 3) If no file argument, read from STDIN
 			inputSQL, err = io.ReadAll(os.Stdin)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: Failed to read from STDIN.")
+				_, _ = fmt.Fprintln(os.Stderr, "Error: Failed to read from STDIN.")
 				os.Exit(1)
 			}
 		}
 	}
 
 	// Convert SQL to JSON via pg_query
-	jsonStr, err := pg_query.ParseToJSON(string(inputSQL))
+	data, err := pg_query.Parse(string(inputSQL))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Failed to parse SQL: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error: Failed to parse SQL: %v\n", err)
+		os.Exit(1)
+	}
+	jsonStr, err := json.Marshal(data)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Error: Failed to parse JSON: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -92,7 +97,7 @@ func main() {
 		// Try to unmarshal the JSON so we can re-format
 		var obj interface{}
 		if err = json.Unmarshal([]byte(jsonStr), &obj); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Invalid JSON from parser: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Error: Invalid JSON from parser: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -105,7 +110,7 @@ func main() {
 		} else {
 			n, convErr := strconv.Atoi(*indentOpt)
 			if convErr != nil {
-				fmt.Fprintf(os.Stderr, "Error: Invalid value for --indent: '%s'\n", *indentOpt)
+				_, _ = fmt.Fprintf(os.Stderr, "Error: Invalid value for --indent: '%s'\n", *indentOpt)
 				os.Exit(1)
 			}
 			spaces = n
@@ -126,18 +131,18 @@ func main() {
 
 			coloredBytes, err := formatter.Marshal(obj)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Failed to colorize JSON: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "Error: Failed to colorize JSON: %v\n", err)
 				os.Exit(1)
 			}
-			jsonStr = string(coloredBytes)
+			jsonStr = coloredBytes
 		} else {
 			// No color => standard library indentation
 			prettyBytes, err := json.MarshalIndent(obj, "", indentStr)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: JSON marshal indent failed: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "Error: JSON marshal indent failed: %v\n", err)
 				os.Exit(1)
 			}
-			jsonStr = string(prettyBytes)
+			jsonStr = prettyBytes
 		}
 
 	} else {
@@ -145,7 +150,7 @@ func main() {
 		if !*noColor {
 			var obj interface{}
 			if err = json.Unmarshal([]byte(jsonStr), &obj); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Invalid JSON from parser: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "Error: Invalid JSON from parser: %v\n", err)
 				os.Exit(1)
 			}
 			formatter := colorjson.NewFormatter()
@@ -154,10 +159,10 @@ func main() {
 
 			coloredBytes, err := formatter.Marshal(obj)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Failed to colorize JSON: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "Error: Failed to colorize JSON: %v\n", err)
 				os.Exit(1)
 			}
-			jsonStr = string(coloredBytes)
+			jsonStr = coloredBytes
 		}
 	}
 
@@ -167,7 +172,7 @@ func main() {
 		// Validate that we can open (create/truncate) the file
 		f, createErr := os.Create(*outFile)
 		if createErr != nil {
-			fmt.Fprintf(os.Stderr, "Error: Failed to open output file '%s': %v\n", *outFile, createErr)
+			_, _ = fmt.Fprintf(os.Stderr, "Error: Failed to open output file '%s': %v\n", *outFile, createErr)
 			os.Exit(1)
 		}
 		defer f.Close()
@@ -175,5 +180,5 @@ func main() {
 	}
 
 	// Finally, print the JSON
-	fmt.Fprintln(writer, jsonStr)
+	_, _ = fmt.Fprintln(writer, string(jsonStr))
 }
